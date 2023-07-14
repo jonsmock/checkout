@@ -211,6 +211,26 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
         'git config --local gc.auto 0',
         settings.nestedSubmodules
       )
+      // TODO: could consider making a separate group/conditional
+      // _just_ for clean&&submodules
+      if (settings.clean) {
+
+        // Remove submodules that don't exist on this branch
+        //
+        // TODO: Semi-duplicated from git-directory-helper.ts
+        if (!(await git.tryClean())) {
+          core.debug(
+            `The clean command failed.`
+            // `The clean command failed. This might be caused by: 1) path too long, 2) permission issue, or 3) file in use. For further investigation, manually run 'git clean -ffdx' on the directory '${repositoryPath}'.`
+          )
+        }
+
+        // Top-level clean does not clean within submodules
+        await git.submoduleForeach(
+          'git clean -ffdx',
+          settings.nestedSubmodules
+        )
+      }
       core.endGroup()
 
       // Persist credentials
